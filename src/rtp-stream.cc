@@ -13,21 +13,23 @@ remote_address(dst_address, dst_port) {
   this->packet_sequence_number = 0;
   
   socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
+  socket.open();
 }
 
-bool RtpStream::send(const uint8_t* payload, const size_t size) {
+bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t ts) {
   const auto offsets = h264::get_nal_offsets(payload, size);
+  std::cout << offsets.size() << " nal units found " << std::endl;
   for (size_t i = 0; i < offsets.size(); i++) {
     const size_t offset = offsets[i];
     const size_t next_offset = (i + 1 < offsets.size()) ? offsets[i + 1] : size;
     const size_t nal_size = next_offset - offset;
     const uint8_t* nal = payload + offset;
-    send_nal_unit(nal, nal_size);
+    send_nal_unit(nal, nal_size, ts);
   }
   return true;
 }
 
-bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size) {
+bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size, const uint32_t ts) {
   RtpHeader header;
   header.set_version(2);
   header.set_padding(0);
@@ -36,7 +38,7 @@ bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size) {
   header.set_marker(0);
   header.set_payload_type(payload_type);
   header.set_sequence_number(packet_sequence_number);
-  header.set_timestamp(0);
+  header.set_timestamp(ts);
   header.set_ssrc(ssrc);
 
   std::vector<uint8_t> header_bytes = header.get_bytes();
@@ -46,6 +48,7 @@ bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size) {
   memcpy(packet_bytes.data() + header_bytes.size(), payload, size);
 
   MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
+  std::cout << "sending " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
   socket.sendTo(packet_buffer, remote_address);
   packet_sequence_number++;
   
