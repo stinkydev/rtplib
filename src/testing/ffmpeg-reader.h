@@ -83,7 +83,8 @@ class FFmpegReader {
             av_image_copy(video_dst_data, video_dst_linesize,
                           (const uint8_t **)(frame->data), frame->linesize,
                           video_codec_ctx->pix_fmt, video_codec_ctx->width, video_codec_ctx->height);
-            on_video_frame(video_dst_data[0], video_dst_bufsize);
+                          
+            on_video_frame(frame, video_dst_data[0], video_dst_bufsize);
             /* write to rawvideo file */
            // fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
         }
@@ -119,7 +120,7 @@ class FFmpegReader {
 }
 
  public:
-  std::function<void(uint8_t*, size_t)> on_video_frame;
+  std::function<void(AVFrame*, uint8_t*, size_t)> on_video_frame;
 
   FFmpegReader(const std::string filename) {
     const auto ctx = create_format_context(filename);

@@ -46,11 +46,11 @@ static size_t next_start_code (const uint8_t* data, size_t size)
 
 static std::vector<size_t> get_nal_offsets(const uint8_t* data, size_t size) {
   std::vector<size_t> offsets;
-  uint8_t next_offset = 0;
+  size_t next_offset = 0;
 
   while (next_offset < size) {
-    const auto offset = next_start_code(data + next_offset, size);
-    if (offset == size) {
+    const auto offset = next_start_code(data + next_offset, size - next_offset);
+    if (offset + next_offset == size) {
       break;
     }
     offsets.push_back(next_offset + offset);

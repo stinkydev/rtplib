@@ -9,6 +9,8 @@ class RtpStream {
   RtpStream(const std::string& dst_address, const uint16_t src_port, const uint16_t dst_port, const uint32_t ssrc, const uint8_t payload_type);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
  private:
+  bool send_big_nal(const uint8_t* payload, const size_t size, const uint32_t ts); 
+  bool send_nal_fragment(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_unit(const uint8_t* payload, const size_t size, const uint32_t ts); 
   uint16_t src_port;
   uint16_t dst_port;
