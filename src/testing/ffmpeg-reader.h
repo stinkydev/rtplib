@@ -111,6 +111,7 @@ class FFmpegReader {
              * to packed data. */
 
 //            fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
+              on_audio_frame(frame);
         }
     }
     /* If we use the new API with reference counting, we own the data and need
@@ -121,6 +122,11 @@ class FFmpegReader {
 
  public:
   std::function<void(AVFrame*, uint8_t*, size_t)> on_video_frame;
+  std::function<void(AVFrame*)> on_audio_frame;
+
+  AVCodecContext* get_audio_codec_context() {
+    return this->audio_codec_ctx;
+  }
 
   FFmpegReader(const std::string filename) {
     const auto ctx = create_format_context(filename);
@@ -136,6 +142,10 @@ class FFmpegReader {
     audio_stream = av_find_best_stream(ctx, AVMediaType::AVMEDIA_TYPE_AUDIO, -1, -1, &audio_codec, 0);
     if (audio_stream < 0) {
       std::cout << "No audio" << std::endl;
+    } else {
+      const auto st = ctx->streams[audio_stream];
+      audio_codec_ctx = st->codec;
+      ck(avcodec_open2(audio_codec_ctx, audio_codec, nullptr));
     }
 
     const auto ret = av_image_alloc(video_dst_data, video_dst_linesize, video_codec_ctx->width, video_codec_ctx->height, video_codec_ctx->pix_fmt, 1);

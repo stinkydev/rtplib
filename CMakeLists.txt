@@ -46,6 +46,9 @@ GIT_TAG        master
 )
 FetchContent_MakeAvailable(min_sock)
 
+add_subdirectory(${EXTERNAL_DIR}/uvgRTP)
+add_subdirectory(${EXTERNAL_DIR}/opus-1.4)
+
 
 file(GLOB_RECURSE CPP_HEADER_FILES ${MAIN_SRC_DIR}/*.h)
 file(GLOB_RECURSE CPP_SOURCE_FILES ${MAIN_SRC_DIR}/*.cc)
@@ -56,10 +59,15 @@ add_executable(${PROJECT_NAME}
   ${CPP_HEADER_FILES}
 )
 
+add_dependencies(${PROJECT_NAME} uvgrtp)
+add_dependencies(${PROJECT_NAME} opus)
+
 target_include_directories(${PROJECT_NAME} 
   SYSTEM PRIVATE 
   ${CPP_INCLUDE_DIRS}
-  ${EXTERNAL_DIR}/ffmpeg/include
+  ${EXTERNAL_DIR}/FFmpeg/include
+  ${EXTERNAL_DIR}/uvgRTP/include
+  ${EXTERNAL_DIR}/opus-1.4/include
 )
 
 #================================================
@@ -76,6 +84,8 @@ target_link_libraries(${PROJECT_NAME}
   libavdevice
   libswresample
   libswscale
+  uvgrtp
+  opus
 )
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD  COMMAND ${CMAKE_COMMAND} -E copy_directory ${FFMPEG_DLL_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/)
