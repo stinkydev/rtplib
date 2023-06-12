@@ -74,10 +74,6 @@ class FFmpegReader {
             return ret;
         }
         if (*got_frame) {
-            std::cout << "video_frame n: coded_n: pts:" << std::endl <<
-                   (cached ? "(cached)" : " ") << std::endl <<
-                   video_frame_count++ << "  " << frame->coded_picture_number << "   " <<
-                   frame->pts;
             /* copy decoded frame to destination buffer:
              * this is required since rawvideo expects non aligned data */
             av_image_copy(video_dst_data, video_dst_linesize,
@@ -85,6 +81,8 @@ class FFmpegReader {
                           video_codec_ctx->pix_fmt, video_codec_ctx->width, video_codec_ctx->height);
                           
             on_video_frame(frame, video_dst_data[0], video_dst_bufsize);
+            std::this_thread::sleep_for(std::chrono::milliseconds(19));
+
             /* write to rawvideo file */
            // fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
         }
@@ -128,6 +126,10 @@ class FFmpegReader {
     return this->audio_codec_ctx;
   }
 
+  AVCodecContext* get_video_codec_context() {
+    return this->video_codec_ctx;
+  }
+
   FFmpegReader(const std::string filename) {
     const auto ctx = create_format_context(filename);
     ck(avformat_find_stream_info(ctx, nullptr));
@@ -138,6 +140,7 @@ class FFmpegReader {
     video_codec_ctx = st->codec;
 
     ck(avcodec_open2(video_codec_ctx, video_codec, nullptr));
+    video_codec_ctx->time_base = st->time_base;
 
     audio_stream = av_find_best_stream(ctx, AVMediaType::AVMEDIA_TYPE_AUDIO, -1, -1, &audio_codec, 0);
     if (audio_stream < 0) {

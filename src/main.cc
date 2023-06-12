@@ -9,8 +9,6 @@
 #include "rtp-session.h"
 #include "utils.h"
 
-#include <uvgrtp/lib.hh>
-
 #include "testing/ffmpeg-reader.h"
 #include "testing/ffmpeg-encoder.h"
 #include "testing/opus-encoder.h"
@@ -40,31 +38,29 @@ int main() {
   FFmpegEncoder encoder;
   encoder.on_video_packet_encoded = [&](AVPacket* pkt, uint32_t pts) {
     std::cout << "video packet: " << pkt->size << " pts: " << pts << std::endl;
-    int flags = RTP_COPY;
     rtp_stream_video->send_h264(pkt->data, pkt->size, pts);
-    std::this_thread::sleep_for(std::chrono::milliseconds(30));
   };
 
   OpusEncoder opus_encoder;
   opus_encoder.on_audio_packet_encoded = [&](uint8_t* data, uint32_t size, uint32_t pts) {
     std::cout << "audio packet: " << size << " pts: " << pts << std::endl;
-    int flags = RTP_COPY;
     rtp_stream_audio->send(data, size, pts);
   };
 
-  FFmpegReader reader("c:\\dev\\output.mp4");
+  FFmpegReader reader("c:\\dev\\a.mov");
   const auto audio_ctx = reader.get_audio_codec_context();
   if (audio_ctx != nullptr) {
     opus_encoder.init(audio_ctx);
   }
-  encoder.init();
+
+  encoder.init(reader.get_video_codec_context());
 
   reader.on_video_frame = [&](AVFrame* frame, uint8_t* data, size_t size) {
     encoder.encode(frame);
   };
 
   reader.on_audio_frame = [&](AVFrame* frame) {
-   // opus_encoder.encode_audio(frame);
+    opus_encoder.encode_audio(frame);
   };
 
   reader.decode(); 

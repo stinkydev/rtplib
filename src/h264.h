@@ -39,7 +39,6 @@ static size_t next_start_code (const uint8_t* data, size_t size)
      * has only 2 'alpabets' (i.e. 0 & 1), we know that any
      * mismatch will force us to shift a fixed number of steps */
   }
-  std::cout << "Cannot find next NAL start code. returning " <<  size << std::endl;
 
   return size;
 }

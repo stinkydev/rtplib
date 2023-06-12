@@ -26,6 +26,7 @@ class FFmpegEncoder {
   AVCodecContext* video_codec_ctx;
   AVPacket* pkt;
   AVFrame* frame;
+  AVRational src_timebase;
  public:
   std::function<void(AVPacket*, uint32_t)> on_video_packet_encoded;
 
@@ -47,13 +48,15 @@ class FFmpegEncoder {
         exit(1);
       }
       std::cout << "receive pkt "<< pkt->size << std::endl;
+      const auto pts = av_rescale_q(pkt->pts, src_timebase, video_codec_ctx->time_base);
 
-      on_video_packet_encoded(pkt, av_rescale_q(pkt->pts, video_codec_ctx->time_base, {1, 90000}));
+      on_video_packet_encoded(pkt, pts);
       av_packet_unref(pkt);
     }
   }
 
-  void init() {
+  void init(AVCodecContext* ctx) {
+    src_timebase = ctx->time_base;
     video_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
     video_codec_ctx = avcodec_alloc_context3(video_codec);
 
