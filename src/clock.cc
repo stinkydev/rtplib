@@ -1,4 +1,4 @@
-#include "clock.h"
+#include <rtplib/clock.h>
 
 #include <stdio.h>
 

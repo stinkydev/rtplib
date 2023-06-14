@@ -22,10 +22,12 @@ message (STATUS "FFMPEG_DIR: " ${MAIN_SRC_DIR})
 
 set(LIB_SOURCES 
   src/h264.h
-  src/rtp-header.h
   src/rtp-header.cc
   src/rtp-session.cc
   src/rtp-stream.cc
+  src/rtcp-packets.cc
+  src/rtcp.cc
+  src/clock.cc
 )
 
 file(GLOB_RECURSE INCLUDE_FILES ${MAIN_INCLUDE_DIR}*.h)
