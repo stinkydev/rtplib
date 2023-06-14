@@ -1,5 +1,5 @@
-#include "rtp-stream.h"
-#include "rtp-header.h"
+#include <rtplib/rtp-stream.h>
+#include <rtplib/rtp-header.h>
 #include "h264.h"
 #include <MinimalSocket/core/Address.h>
 #include <MinimalSocket/udp/UdpSocket.h>

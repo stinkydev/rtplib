@@ -6,13 +6,56 @@ project(rtplib VERSION 0.0.1)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(MAIN_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+set(MAIN_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(EXTERNAL_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/out)
 
 # config IDE ext 
 include(CTest)
 enable_testing()
+
+set(BUILD_MinimalCppSocket_SAMPLES OFF)
+add_subdirectory(${EXTERNAL_DIR}/minimal-socket)
+add_subdirectory(${EXTERNAL_DIR}/opus-1.4)
+
+message (STATUS "FFMPEG_DIR: " ${MAIN_SRC_DIR})
+
+set(LIB_SOURCES 
+  src/h264.h
+  src/rtp-header.h
+  src/rtp-header.cc
+  src/rtp-session.cc
+  src/rtp-stream.cc
+)
+
+file(GLOB_RECURSE INCLUDE_FILES ${MAIN_INCLUDE_DIR}*.h)
+
+add_library(${PROJECT_NAME} STATIC
+  ${INCLUDE_FILES}
+  ${LIB_SOURCES}
+)
+
+add_dependencies(${PROJECT_NAME} MinimalSocket)
+
+target_include_directories(${PROJECT_NAME}
+  PUBLIC 
+  ${MAIN_INCLUDE_DIR}
+  ${EXTERNAL_DIR}/minimal-socket/src/header
+)
+
+#================================================
+# LIBRARIES
+#================================================
+#target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static)
+target_link_libraries(${PROJECT_NAME} 
+  PRIVATE 
+  ${CPP_LIBS}
+  MinimalSocket
+)
+
+
+set (BUILD_TEST_PROJECT ON)
+if (BUILD_TEST_PROJECT)
 
 add_library(libavformat STATIC IMPORTED)
 add_library(libavutil STATIC IMPORTED)
@@ -36,44 +79,17 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   # other macOS-specific flags for Clang
 endif()
 
-set(BUILD_MinimalCppSocket_SAMPLES OFF)
-include(FetchContent)
-FetchContent_Declare(
-min_sock
-GIT_REPOSITORY https://github.com/andreacasalino/Minimal-Socket
-GIT_TAG        master
-
+set(TESTPROJECT_NAME ${PROJECT_NAME}_test)
+add_executable(${TESTPROJECT_NAME}
+  src/rtptest/main.cc
+  src/rtptest/utils.h
+  src/rtptest/testing/ffmpeg-encoder.h
+  src/rtptest/testing/ffmpeg-reader.h
+  src/rtptest/testing/opus-encoder.h
 )
-FetchContent_MakeAvailable(min_sock)
-
-add_subdirectory(${EXTERNAL_DIR}/opus-1.4)
-
-file(GLOB_RECURSE CPP_HEADER_FILES ${MAIN_SRC_DIR}/*.h)
-file(GLOB_RECURSE CPP_SOURCE_FILES ${MAIN_SRC_DIR}/*.cc)
-
-add_executable(${PROJECT_NAME}
-  ${ENTRYPOINT} 
-  ${CPP_SOURCE_FILES}
-  ${CPP_HEADER_FILES}
-)
-
-add_dependencies(${PROJECT_NAME} opus)
-
-target_include_directories(${PROJECT_NAME} 
-  SYSTEM PRIVATE 
-  ${CPP_INCLUDE_DIRS}
-  ${EXTERNAL_DIR}/FFmpeg/include
-  ${EXTERNAL_DIR}/opus-1.4/include
-)
-
-#================================================
-# LIBRARIES
-#================================================
-#target_link_libraries(${PROJECT_NAME} SDL2main SDL2-static)
-target_link_libraries(${PROJECT_NAME} 
+target_link_libraries(${TESTPROJECT_NAME}
   PRIVATE 
-  ${CPP_LIBS}
-  MinimalSocket
+  ${PROJECT_NAME}
   libavformat
   libavutil
   libavcodec
@@ -83,4 +99,11 @@ target_link_libraries(${PROJECT_NAME}
   opus
 )
 
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD  COMMAND ${CMAKE_COMMAND} -E copy_directory ${FFMPEG_DLL_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/)
+target_include_directories(${TESTPROJECT_NAME}
+  SYSTEM PRIVATE
+  
+  ${EXTERNAL_DIR}/FFmpeg/include
+  ${EXTERNAL_DIR}/opus-1.4/include
+)
+endif()
+
