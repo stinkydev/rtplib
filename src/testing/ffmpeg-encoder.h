@@ -16,6 +16,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
 #include <libavutil/pixdesc.h>
+#include <libavutil/log.h>
 }
 #pragma warning(pop)
 
@@ -25,10 +26,9 @@ class FFmpegEncoder {
   AVCodecContext* video_codec_ctx;
   AVPacket* pkt;
   AVFrame* frame;
-  
-
+  AVRational src_timebase;
  public:
-  std::function<void(AVPacket*, uint32_t)> on_packet_encoded;
+  std::function<void(AVPacket*, uint32_t)> on_video_packet_encoded;
 
   void encode(AVFrame *frame) {
     int ret;
@@ -48,24 +48,27 @@ class FFmpegEncoder {
         exit(1);
       }
       std::cout << "receive pkt "<< pkt->size << std::endl;
+      const auto pts = av_rescale_q(pkt->pts, src_timebase, video_codec_ctx->time_base);
 
-      on_packet_encoded(pkt, 0);
+      on_video_packet_encoded(pkt, pts);
       av_packet_unref(pkt);
     }
   }
 
-  FFmpegEncoder() {
+  void init(AVCodecContext* ctx) {
+    src_timebase = ctx->time_base;
     video_codec = avcodec_find_encoder(AV_CODEC_ID_H264);
     video_codec_ctx = avcodec_alloc_context3(video_codec);
+
     pkt = av_packet_alloc();
 
     video_codec_ctx->width = 1920;
     video_codec_ctx->height = 1080;
 
     video_codec_ctx->time_base.num = 1;
-    video_codec_ctx->time_base.den = 50;
+    video_codec_ctx->time_base.den = 90000;
 
-    video_codec_ctx->framerate.num = 50;
+    video_codec_ctx->framerate.num = 25;
     video_codec_ctx->framerate.den = 1;
 
     video_codec_ctx->gop_size = 10;
@@ -79,6 +82,9 @@ class FFmpegEncoder {
     av_opt_set(video_codec_ctx->priv_data, "x264opts", "bitrate=60000:aud=1", 0);
     
     ck(avcodec_open2(video_codec_ctx, video_codec, NULL));
+  }
+
+  FFmpegEncoder() {
   } 
 
 };

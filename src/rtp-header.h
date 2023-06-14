@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <memory>
 
 class RtpHeader {
  private:
@@ -13,7 +14,8 @@ class RtpHeader {
   uint8_t payload_type_;
   uint16_t sequence_number_;
   uint32_t timestamp_;
-  uint32_t ssrc_; 
+  uint32_t ssrc_;
+  std::unique_ptr<std::vector<uint8_t>> bytes_buf;
  public:
   RtpHeader();
   RtpHeader(const std::vector<uint8_t>& bytes);

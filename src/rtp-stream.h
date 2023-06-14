@@ -4,11 +4,23 @@
 #include <string>
 #include <MinimalSocket/udp/UdpSocket.h>
 
+class RtpHeader;
+
+struct RtpStreamConfig {
+  std::string dst_address;
+  uint16_t dst_port;
+  uint16_t src_port;
+  uint32_t ssrc;
+  uint8_t payload_type;
+};
+
 class RtpStream {
  public:
-  RtpStream(const std::string& dst_address, const uint16_t src_port, const uint16_t dst_port, const uint32_t ssrc, const uint8_t payload_type);
+  RtpStream(const RtpStreamConfig &config);
+  bool send_h264(const uint8_t* payload, const size_t size, const uint32_t ts);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
  private:
+  std::unique_ptr<RtpHeader> header;
   bool send_big_nal(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_fragment(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_unit(const uint8_t* payload, const size_t size, const uint32_t ts); 

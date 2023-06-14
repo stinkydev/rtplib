@@ -1,6 +1,8 @@
 #include "rtp-header.h"
 
 RtpHeader::RtpHeader() {
+  bytes_buf = std::make_unique<std::vector<uint8_t>>();
+
   version_ = 2;
   padding_ = 0;
   extension_ = 0;
@@ -13,6 +15,7 @@ RtpHeader::RtpHeader() {
 }
 
 RtpHeader::RtpHeader(const std::vector<uint8_t>& bytes) {
+  bytes_buf = std::make_unique<std::vector<uint8_t>>();
   // Extract the RTP version from the first byte.
   version_ = bytes[0] >> 6;
 
@@ -117,19 +120,19 @@ uint32_t RtpHeader::get_ssrc() const {
 }
 
 std::vector<uint8_t> RtpHeader::get_bytes() const {
-  std::vector<uint8_t> bytes;
-  bytes.resize(12);
-  bytes[0] = version_ << 6 | padding_ << 5 | extension_ << 4 | csrc_count_;
-  bytes[1] = marker_ << 7 | payload_type_;
-  bytes[2] = sequence_number_ >> 8;
-  bytes[3] = sequence_number_ & 0xFF;
-  bytes[4] = timestamp_ >> 24;
-  bytes[5] = timestamp_ >> 16 & 0xFF;
-  bytes[6] = timestamp_ >> 8 & 0xFF;
-  bytes[7] = timestamp_ & 0xFF;
-  bytes[8] = ssrc_ >> 24;
-  bytes[9] = ssrc_ >> 16 & 0xFF;
-  bytes[10] = ssrc_ >> 8 & 0xFF;
-  bytes[11] = ssrc_ & 0xFF;
-  return bytes;
+  const auto bytes = bytes_buf.get();
+  bytes->resize(12);
+  bytes->at(0) = version_ << 6 | padding_ << 5 | extension_ << 4 | csrc_count_;
+  bytes->at(1) = marker_ << 7 | payload_type_;
+  bytes->at(2) = sequence_number_ >> 8;
+  bytes->at(3) = sequence_number_ & 0xFF;
+  bytes->at(4) = timestamp_ >> 24;
+  bytes->at(5) = timestamp_ >> 16 & 0xFF;
+  bytes->at(6) = timestamp_ >> 8 & 0xFF;
+  bytes->at(7) = timestamp_ & 0xFF;
+  bytes->at(8) = ssrc_ >> 24;
+  bytes->at(9) = ssrc_ >> 16 & 0xFF;
+  bytes->at(10) = ssrc_ >> 8 & 0xFF;
+  bytes->at(11) = ssrc_ & 0xFF;
+  return *bytes;
 }
