@@ -3,6 +3,8 @@
 #include <string>
 #include <iostream>
 #include <functional>
+#include <thread>
+#include <chrono>
 
 #pragma warning(push, 0)
 extern "C" {
@@ -107,8 +109,8 @@ class FFmpegReader {
              * You should use libswresample or libavfilter to convert the frame
              * to packed data. */
 
-//            fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
-              on_audio_frame(frame);
+           // fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
+            on_audio_frame(frame);
         }
     }
     /* If we use the new API with reference counting, we own the data and need
