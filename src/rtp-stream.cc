@@ -8,7 +8,7 @@ static const int MAX_MCU = 1400;
 
 RtpStream::RtpStream(const RtpStreamConfig &config) : remote_address(config.dst_address, config.dst_port) {
   if (true) {
-    rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port + 1, config.dst_port + 1, config.ssrc, config.clock_rate);
+    rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port_rtcp, config.dst_port_rtcp, config.ssrc, config.clock_rate);
   } else {
     rtcp = nullptr;
   }

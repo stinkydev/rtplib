@@ -12,6 +12,8 @@ struct RtpStreamConfig {
   std::string dst_address;
   uint16_t dst_port;
   uint16_t src_port;
+  uint16_t dst_port_rtcp;
+  uint16_t src_port_rtcp;
   uint32_t ssrc;
   uint8_t payload_type;
   uint32_t clock_rate;
