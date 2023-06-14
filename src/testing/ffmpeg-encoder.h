@@ -47,7 +47,6 @@ class FFmpegEncoder {
         std::cout << "Error during encoding";
         exit(1);
       }
-      std::cout << "receive pkt "<< pkt->size << std::endl;
       const auto pts = av_rescale_q(pkt->pts, src_timebase, video_codec_ctx->time_base);
 
       on_video_packet_encoded(pkt, pts);

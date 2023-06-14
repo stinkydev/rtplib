@@ -3,6 +3,8 @@
 #include <string>
 #include <iostream>
 #include <functional>
+#include <thread>
+#include <chrono>
 
 #pragma warning(push, 0)
 extern "C" {
@@ -81,7 +83,6 @@ class FFmpegReader {
                           video_codec_ctx->pix_fmt, video_codec_ctx->width, video_codec_ctx->height);
                           
             on_video_frame(frame, video_dst_data[0], video_dst_bufsize);
-            std::this_thread::sleep_for(std::chrono::milliseconds(19));
 
             /* write to rawvideo file */
            // fwrite(video_dst_data[0], 1, video_dst_bufsize, video_dst_file);
@@ -108,8 +109,8 @@ class FFmpegReader {
              * You should use libswresample or libavfilter to convert the frame
              * to packed data. */
 
-//            fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
-              on_audio_frame(frame);
+           // fwrite(frame->extended_data[0], 1, unpadded_linesize, audio_dst_file);
+            on_audio_frame(frame);
         }
     }
     /* If we use the new API with reference counting, we own the data and need

@@ -32,52 +32,50 @@ extern "C" {
 
 class OpusEncoder {
  private:
-  SwrContext *swr_ctx;
-  AVAudioFifo *fifo;
+  SwrContext *swr_ctx = nullptr;
+  AVAudioFifo *fifo = nullptr;
 
-  OpusEncoder* opus_encoder;
+  OpusEncoder* opus_encoder = nullptr;
   unsigned char cbits[MAX_PACKET_SIZE];
   opus_int16 in[FRAME_SIZE*CHANNELS];
 
   int buffer_line_size = 0;
-  uint8_t** audio_buffer;
+  uint8_t** audio_buffer = nullptr;
   uint32_t pts = 0;
 
-  /** Initialize a FIFO buffer for the audio samples to be encoded. */
   static int init_fifo(AVAudioFifo **fifo) {
-    /** Create the FIFO buffer based on the specified output sample format. */
     if (!(*fifo = av_audio_fifo_alloc(OUTPUT_SAMPLE_FORMAT, CHANNELS, 1))) {
-        fprintf(stderr, "Could not allocate FIFO\n");
-        return AVERROR(ENOMEM);
+      fprintf(stderr, "Could not allocate FIFO\n");
+      return AVERROR(ENOMEM);
     }
     return 0;
   }
 
-  static int add_samples_to_fifo(AVAudioFifo *fifo,
-                               uint8_t **converted_input_samples,
-                               const int frame_size) {
+  static int add_samples_to_fifo(AVAudioFifo *fifo, uint8_t **converted_input_samples, const int frame_size) {
     int error;
 
-    /**
-     * Make the FIFO as large as it needs to be to hold both,
-     * the old and the new samples.
-     */
     if ((error = av_audio_fifo_realloc(fifo, av_audio_fifo_size(fifo) + frame_size)) < 0) {
-        fprintf(stderr, "Could not reallocate FIFO\n");
-        return error;
+      fprintf(stderr, "Could not reallocate FIFO\n");
+      return error;
     }
 
-    /** Store the new samples in the FIFO buffer. */
-    if (av_audio_fifo_write(fifo, (void **)converted_input_samples,
-                            frame_size) < frame_size) {
-        fprintf(stderr, "Could not write data to FIFO\n");
-        return AVERROR_EXIT;
+    if (av_audio_fifo_write(fifo, (void **)converted_input_samples, frame_size) < frame_size) {
+      fprintf(stderr, "Could not write data to FIFO\n");
+      return AVERROR_EXIT;
     }
     return 0;
  }
 
  public:
-   std::function<void(uint8_t*, uint32_t, uint32_t)> on_audio_packet_encoded;
+  std::function<void(uint8_t*, uint32_t, uint32_t)> on_audio_packet_encoded;
+
+  ~OpusEncoder() {
+    av_freep(&audio_buffer[0]);
+    av_freep(&audio_buffer);
+    swr_free(&swr_ctx);
+    av_audio_fifo_free(fifo);
+    opus_encoder_destroy(opus_encoder);
+  }
 
   void encode_audio(AVFrame *frame) {
     int ret;
@@ -98,7 +96,7 @@ class OpusEncoder {
           exit(1);
         }
         for (int i=0;i < CHANNELS * FRAME_SIZE; i++) {
-          in[i] = (unsigned char)audio_buffer[2*i+1] << 8 | (unsigned char)audio_buffer[2*i];      
+          in[i] = (unsigned char)audio_buffer[0][2*i+1] << 8 | (unsigned char)audio_buffer[0][2*i];      
         }
             /* Encode the frame. */
         int nbBytes = opus_encode(opus_encoder, in, FRAME_SIZE, cbits, MAX_PACKET_SIZE);
@@ -108,7 +106,7 @@ class OpusEncoder {
           exit(1);
         }
 
-        on_audio_packet_encoded((uint8_t*)cbits, nbBytes, pts);
+        on_audio_packet_encoded((uint8_t*)&cbits[0], nbBytes, pts);
         pts += got_samples;
       }
 
@@ -129,15 +127,15 @@ class OpusEncoder {
     }
     err = opus_encoder_ctl(opus_encoder, OPUS_SET_BITRATE(BITRATE));
 
-    swr_ctx = swr_alloc_set_opts(NULL,   // we're allocating a new context
+    swr_ctx = swr_alloc_set_opts(NULL,
                 av_get_default_channel_layout(CHANNELS), // out_ch_layout
-                OUTPUT_SAMPLE_FORMAT,  // out_sample_fmt
-                SAMPLE_RATE,              // out_sample_rate
+                OUTPUT_SAMPLE_FORMAT,                    // out_sample_fmt
+                SAMPLE_RATE,                             // out_sample_rate
                 av_get_default_channel_layout(src_audio_codec_ctx->channels),   // in_ch_layout
-                src_audio_codec_ctx->sample_fmt,   // in_sample_fmt
-                src_audio_codec_ctx->sample_rate,       // in_sample_rate
-                0,                   // log_offset
-                NULL);               // log_ctx
+                src_audio_codec_ctx->sample_fmt,         // in_sample_fmt
+                src_audio_codec_ctx->sample_rate,        // in_sample_rate
+                0,                                       // log_offset
+                NULL);                                   // log_ctx
 
     ck(swr_init(swr_ctx));
     

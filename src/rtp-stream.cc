@@ -6,8 +6,12 @@
 
 static const int MAX_MCU = 1400;
 
-RtpStream::RtpStream(const RtpStreamConfig &config) :
-remote_address(config.dst_address, config.dst_port) {
+RtpStream::RtpStream(const RtpStreamConfig &config) : remote_address(config.dst_address, config.dst_port) {
+  if (true) {
+    rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port + 1, config.dst_port + 1, config.ssrc, config.clock_rate);
+  } else {
+    rtcp = nullptr;
+  }
   header = std::make_unique<RtpHeader>();
   this->src_port = config.src_port;
   this->dst_port = config.dst_port;
@@ -42,6 +46,10 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
   MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
   // std::cout << "sending audio " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
   socket.sendTo(packet_buffer, remote_address);
+
+  if (rtcp) {
+    rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
+  }
 
   packet_sequence_number++;
   return true; 
@@ -122,6 +130,10 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     //std::cout << "BIG sending " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
     socket.sendTo(packet_buffer, remote_address);
 
+    if (rtcp) {
+      rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
+    }
+
     packet_sequence_number++;
   }
 
@@ -148,6 +160,11 @@ bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size, const u
   MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
   //std::cout << "sending " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
   socket.sendTo(packet_buffer, remote_address);
+
+  if (rtcp) {
+    rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
+  }
+
   packet_sequence_number++;
   
   return true;

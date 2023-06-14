@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string>
 #include <MinimalSocket/udp/UdpSocket.h>
+#include "rtcp.h"
 
 class RtpHeader;
 
@@ -12,6 +13,7 @@ struct RtpStreamConfig {
   uint16_t src_port;
   uint32_t ssrc;
   uint8_t payload_type;
+  uint32_t clock_rate;
 };
 
 class RtpStream {
@@ -20,6 +22,7 @@ class RtpStream {
   bool send_h264(const uint8_t* payload, const size_t size, const uint32_t ts);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
  private:
+  std::unique_ptr<RTCP::RTCPInstance> rtcp; 
   std::unique_ptr<RtpHeader> header;
   bool send_big_nal(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_fragment(const uint8_t* payload, const size_t size, const uint32_t ts); 
