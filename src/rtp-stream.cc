@@ -31,7 +31,7 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
   header->set_padding(0);
   header->set_extension(0);
   header->set_csrc_count(0);
-  header->set_marker(0);
+  header->set_marker(1);
   header->set_payload_type(payload_type);
   header->set_sequence_number(packet_sequence_number);
   header->set_timestamp(ts);
@@ -100,7 +100,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     header->set_padding(0);
     header->set_extension(0);
     header->set_csrc_count(0);
-    header->set_marker(0);
+    header->set_marker(i == parts - 1 ? 1 : 0);
     header->set_payload_type(payload_type);
     header->set_sequence_number(packet_sequence_number);
     header->set_timestamp(ts);
@@ -145,7 +145,7 @@ bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size, const u
   header->set_padding(0);
   header->set_extension(0);
   header->set_csrc_count(0);
-  header->set_marker(0);
+  header->set_marker(1);
   header->set_payload_type(payload_type);
   header->set_sequence_number(packet_sequence_number);
   header->set_timestamp(ts);
