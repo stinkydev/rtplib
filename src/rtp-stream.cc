@@ -4,9 +4,9 @@
 #include <MinimalSocket/core/Address.h>
 #include <MinimalSocket/udp/UdpSocket.h>
 
-static const int MAX_MCU = 1400;
+static const int MAX_MCU = 1200;
 
-RtpStream::RtpStream(const RtpStreamConfig &config) : remote_address(config.dst_address, config.dst_port) {
+RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number) : remote_address(config.dst_address, config.dst_port) {
   if (true) {
     rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port_rtcp, config.dst_port_rtcp, config.ssrc, config.clock_rate);
   } else {
@@ -17,16 +17,17 @@ RtpStream::RtpStream(const RtpStreamConfig &config) : remote_address(config.dst_
   this->dst_port = config.dst_port;
   this->ssrc = config.ssrc;
   this->payload_type = config.payload_type;
-  this->packet_sequence_number = 0;
+  this->packet_sequence_number = packet_sequence_number;
   
   socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
   socket.open();
 }
 
+uint32_t RtpStream::get_packet_sequence_number() {
+  return packet_sequence_number;
+}
+
 bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t ts) {
-  if (size > MAX_MCU) {
-    return false;
-  }
   header->set_version(2);
   header->set_padding(0);
   header->set_extension(0);
@@ -39,12 +40,10 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
 
   std::vector<uint8_t> header_bytes = header->get_bytes();
   std::vector<uint8_t> packet_bytes;
-  packet_sequence_number++;
   packet_bytes.insert(packet_bytes.end(), header_bytes.begin(), header_bytes.end());
   packet_bytes.resize(header_bytes.size() + size);
   memcpy(packet_bytes.data() + header_bytes.size(), payload, size);
   MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
-  // std::cout << "sending audio " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
   socket.sendTo(packet_buffer, remote_address);
 
   if (rtcp) {

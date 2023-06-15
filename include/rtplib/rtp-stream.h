@@ -21,9 +21,10 @@ struct RtpStreamConfig {
 
 class RtpStream {
  public:
-  RtpStream(const RtpStreamConfig &config);
+  RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number = 0);
   bool send_h264(const uint8_t* payload, const size_t size, const uint32_t ts);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
+  uint32_t RtpStream::get_packet_sequence_number();
  private:
   std::unique_ptr<RTCP::RTCPInstance> rtcp; 
   std::unique_ptr<RtpHeader> header;
