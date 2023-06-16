@@ -6,12 +6,19 @@
 
 namespace RTCP {
 
-RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, uint16_t src_port, uint16_t dst_port, uint32_t ssrc, uint32_t clock_rate)
-  : src_port(src_port), dst_port(dst_port), ssrc(ssrc), socket(src_port), remote_address(dst_address, dst_port) {
+RTCPInstance::RTCPInstance(std::string cname, RtpSocket* socket, uint32_t ssrc, uint32_t clock_rate) : socket(socket), ssrc(ssrc), clock_rate_(clock_rate) {
+  init(cname);
+}
 
+RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, uint16_t src_port, uint16_t dst_port, uint32_t ssrc, uint32_t clock_rate)
+  : src_port(src_port), dst_port(dst_port), ssrc(ssrc), clock_rate_(clock_rate) {
+  socket = new RtpSocket(dst_address, src_port, dst_port);
+  init(cname);
+}
+
+void RTCPInstance::init(std::string cname) {
   rtcp_pkt_sent_count_ = 0;
   clock_start_ = 0;
-  clock_rate_ = clock_rate;
   last_ntp_timestamp = 0;
   last_rtp_timestamp = 0;
 
@@ -26,11 +33,15 @@ RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, ui
 
   ourItems_.push_back(cnameItem_);
 
-  socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
-  socket.open();
-
   stopping = false;
   rtcp_loop_thread = std::thread(&RTCPInstance::rtcp_loop, this);
+}
+
+void RTCPInstance::stop() {
+  stopping = true;
+  if (rtcp_loop_thread.joinable()) {
+    rtcp_loop_thread.join();
+  }
 }
 
 void RTCPInstance::rtcp_loop() {
@@ -136,8 +147,10 @@ bool RTCPInstance::generate_report() {
         }
     }
 
-    MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(frame), compound_packet_size};
-    socket.sendTo(packet_buffer, remote_address);
+    const auto buffer = socket->get_buffer();
+    memcpy(buffer.data, frame, compound_packet_size);
+
+    socket->send({ buffer.data, compound_packet_size });
     return true;
 }
 

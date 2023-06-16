@@ -24,6 +24,7 @@ set(LIB_SOURCES
   src/rtp-header.cc
   src/rtp-session.cc
   src/rtp-stream.cc
+  src/rtp-socket.cc
   src/rtcp-packets.cc
   src/rtcp.cc
   src/clock.cc

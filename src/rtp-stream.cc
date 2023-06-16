@@ -1,16 +1,16 @@
 #include <rtplib/rtp-stream.h>
 #include <rtplib/rtp-header.h>
 #include "h264.h"
-#include <MinimalSocket/core/Address.h>
-#include <MinimalSocket/udp/UdpSocket.h>
 
-static const int MAX_MCU = 1200;
+static const int MAX_MCU = 1400;
 
-RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number) : remote_address(config.dst_address, config.dst_port) {
-  if (true) {
-    rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port_rtcp, config.dst_port_rtcp, config.ssrc, config.clock_rate);
+RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number)
+ : socket(config.dst_address, config.src_port, config.dst_port) {
+  this->rtcp_mux = config.rtcp_mux;
+  if (rtcp_mux) {
+   rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), &socket, config.ssrc, config.clock_rate);
   } else {
-    rtcp = nullptr;
+   rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port_rtcp, config.dst_port_rtcp, config.ssrc, config.clock_rate);
   }
   header = std::make_unique<RtpHeader>();
   this->src_port = config.src_port;
@@ -18,13 +18,29 @@ RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_num
   this->ssrc = config.ssrc;
   this->payload_type = config.payload_type;
   this->packet_sequence_number = packet_sequence_number;
-  
-  socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
-  socket.open();
 }
 
 uint32_t RtpStream::get_packet_sequence_number() {
   return packet_sequence_number;
+}
+
+bool RtpStream::send_packet(const uint8_t* payload, const size_t size, const uint32_t ts) {
+  std::vector<uint8_t> header_bytes = header->get_bytes();
+  
+  const auto total_size = header_bytes.size() + size;
+  const auto buffer = socket.get_buffer();
+  memcpy(buffer.data, header_bytes.data(), header_bytes.size());
+  const auto payload_ptr = buffer.data + header_bytes.size();
+  memcpy(payload_ptr, payload, size);
+  
+  socket.send({ buffer.data, total_size });
+
+  if (rtcp) {
+    rtcp->update_stats(packet_sequence_number, total_size, ts);
+  }
+
+  packet_sequence_number++;
+  return true;
 }
 
 bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t ts) {
@@ -38,19 +54,8 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
   header->set_timestamp(ts);
   header->set_ssrc(ssrc);
 
-  std::vector<uint8_t> header_bytes = header->get_bytes();
-  std::vector<uint8_t> packet_bytes;
-  packet_bytes.insert(packet_bytes.end(), header_bytes.begin(), header_bytes.end());
-  packet_bytes.resize(header_bytes.size() + size);
-  memcpy(packet_bytes.data() + header_bytes.size(), payload, size);
-  MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
-  socket.sendTo(packet_buffer, remote_address);
+  send_packet(payload, size, ts);
 
-  if (rtcp) {
-    rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
-  }
-
-  packet_sequence_number++;
   return true; 
 }
 
@@ -73,10 +78,6 @@ bool RtpStream::send_h264(const uint8_t* payload, const size_t size, const uint3
     }
 
   }
-  return true;
-}
-
-bool RtpStream::send_nal_fragment(const uint8_t* payload, const size_t size, const uint32_t ts) {
   return true;
 }
 
@@ -106,31 +107,29 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     header->set_ssrc(ssrc);
 
     std::vector<uint8_t> header_bytes = header->get_bytes();
-    std::vector<uint8_t> packet_bytes;
+    const auto buffer = socket.get_buffer();
 
     size_t payload_size = (i == parts - 1) ? size - offset : MAX_MCU;
     const size_t payload_offset = (i == 0) ? 1 : 2;
 
-    packet_bytes.insert(packet_bytes.end(), header_bytes.begin(), header_bytes.end());
-    packet_bytes.resize(header_bytes.size() + payload_size + payload_offset);
-    memcpy(packet_bytes.data() + header_bytes.size() + payload_offset, payload + offset, payload_size);
-    packet_bytes[header_bytes.size()] = fu_indicator;
+    memcpy(buffer.data, header_bytes.data(), header_bytes.size());
+    memcpy(buffer.data + header_bytes.size() + payload_offset, payload + offset, payload_size);
+    buffer.data[header_bytes.size()] = fu_indicator;
 
     if (i == 0) {
-      packet_bytes[header_bytes.size() + 1] = fu_headers[0];
+      buffer.data[header_bytes.size() + 1] = fu_headers[0];
     } else if (i == parts - 1) {
-      packet_bytes[header_bytes.size() + 1] = fu_headers[2];
+      buffer.data[header_bytes.size() + 1] = fu_headers[2];
     } else {
-      packet_bytes[header_bytes.size() + 1] = fu_headers[1];
+      buffer.data[header_bytes.size() + 1] = fu_headers[1];
     }
 
     offset += payload_size;
-    MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
-    //std::cout << "BIG sending " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
-    socket.sendTo(packet_buffer, remote_address);
+
+    socket.send({ buffer.data, header_bytes.size() + payload_size });
 
     if (rtcp) {
-      rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
+      rtcp->update_stats(packet_sequence_number, header_bytes.size() + payload_size, ts);
     }
 
     packet_sequence_number++;
@@ -150,21 +149,7 @@ bool RtpStream::send_nal_unit(const uint8_t* payload, const size_t size, const u
   header->set_timestamp(ts);
   header->set_ssrc(ssrc);
 
-  std::vector<uint8_t> header_bytes = header->get_bytes();
-  std::vector<uint8_t> packet_bytes;
-  packet_bytes.insert(packet_bytes.end(), header_bytes.begin(), header_bytes.end());
-  packet_bytes.resize(packet_bytes.size() + size);
-  memcpy(packet_bytes.data() + header_bytes.size(), payload, size);
-
-  MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(packet_bytes.data()), packet_bytes.size()};
-  //std::cout << "sending " << packet_bytes.size() << " to " << remote_address.getHost() << std::endl;
-  socket.sendTo(packet_buffer, remote_address);
-
-  if (rtcp) {
-    rtcp->update_stats(packet_sequence_number, packet_bytes.size(), ts);
-  }
-
-  packet_sequence_number++;
+  send_packet(payload, size, ts);
   
   return true;
 }
