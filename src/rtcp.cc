@@ -150,7 +150,7 @@ bool RTCPInstance::generate_report() {
     const auto buffer = socket->get_buffer();
     memcpy(buffer.data, frame, compound_packet_size);
 
-    socket->send({ buffer.data, compound_packet_size });
+    socket->send({ buffer.data, compound_packet_size }, 100);
     return true;
 }
 

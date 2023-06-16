@@ -23,7 +23,7 @@ struct PoolItem {
 class RtpSocket {
  private:
   bool stopping = false;
-  std::deque<RtpBuffer> buffers;
+  std::unique_ptr<std::deque<RtpBuffer>> send_buffer;
   MinimalSocket::udp::UdpBinded socket;
   MinimalSocket::Address remote_address;
   std::thread thd;
@@ -31,7 +31,7 @@ class RtpSocket {
   void loop();
   std::mutex mutex;
  public:
-  void send(RtpBuffer buffer);
+  void send(RtpBuffer buffer, uint32_t id);
   RtpBuffer get_buffer();
   RtpSocket(const std::string& dst_address, const uint16_t src_port, const uint16_t dst_port);
   ~RtpSocket();

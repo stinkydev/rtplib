@@ -8,6 +8,8 @@ RtpSocket::RtpSocket(const std::string& dst_address, const uint16_t src_port, co
   socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
   socket.open();
 
+  send_buffer = std::make_unique<std::deque<RtpBuffer>>();
+
   for (size_t i = 0; i < RTP_POOL_SIZE; i++) {
     PoolItem item = PoolItem();
     item.data = new uint8_t[RTP_PACKET_SIZE];
@@ -27,10 +29,11 @@ RtpSocket::~RtpSocket() {
   }
 }
 
-void RtpSocket::send(RtpBuffer buffer) {
+void RtpSocket::send(RtpBuffer buffer, uint32_t id) {
   std::lock_guard<std::mutex> lock(mutex);
-  buffers.push_back(buffer);
-  std::cout << "buffers.size(): " << buffers.size() << std::endl;
+  send_buffer->push_back(std::move(buffer));
+  std::cout << id << ": send " << buffer.size << " bytes queue: " << send_buffer->size() << std::endl;
+
 }
 
 RtpBuffer RtpSocket::get_buffer() {
@@ -51,12 +54,10 @@ void RtpSocket::loop() {
     {
       std::lock_guard<std::mutex> lock(mutex);
 
-      std::cout << "loop: buffers.size(): " << buffers.size() << std::endl;
-      while (buffers.size() > 0) {
-        RtpBuffer buffer = buffers.front();
-        buffers.pop_front();
+      while (send_buffer->size() > 0) {
+        RtpBuffer buffer = send_buffer->front();
+        send_buffer->pop_front();
         MinimalSocket::ConstBuffer packet{reinterpret_cast<char*>(buffer.data), buffer.size};
-        std::cout << "loop: sending " << buffer.size << " bytes" << std::endl;
         socket.sendTo(packet, remote_address);
         pool.push_back({buffer.data, RTP_PACKET_SIZE});
       }

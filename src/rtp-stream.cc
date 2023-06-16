@@ -33,9 +33,7 @@ bool RtpStream::send_packet(const uint8_t* payload, const size_t size, const uin
   const auto payload_ptr = buffer.data + header_bytes.size();
   memcpy(payload_ptr, payload, size);
 
-  std::cout << "sendpacket: sending " << total_size << " bytes" << std::endl;
-
-  socket.send({ buffer.data, total_size });
+  socket.send({ buffer.data, total_size }, 0);
 
   if (rtcp) {
     rtcp->update_stats(packet_sequence_number, total_size, ts);
@@ -64,6 +62,7 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
 
 bool RtpStream::send_h264(const uint8_t* payload, const size_t size, const uint32_t ts) {
   const auto offsets = h264::get_nal_offsets(payload, size);
+  std::cout << "offsets: " << offsets.size() << std::endl;
   for (size_t i = 0; i < offsets.size(); i++) {
     const size_t offset = offsets[i];
     const size_t next_offset = (i + 1 < offsets.size()) ? offsets[i + 1] - 3 : size;
@@ -96,7 +95,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
   fu_headers[2] = (uint8_t)((1 << 6) | nal_type);
 
   size_t offset = 0;
-  std::cout << "BIGNAL bgin size: " << size << " " << parts << " parts" << std::endl;
+  std::cout << "parts: " << parts << std::endl;
   for (size_t i = 0; i < parts; i++) {
     header->set_version(2);
     header->set_padding(0);
@@ -127,8 +126,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     }
 
     offset += payload_size;
-    std::cout << "bignal: sending " << payload_size << " bytes" << std::endl;
-    socket.send({ buffer.data, header_bytes.size() + payload_size });
+    socket.send({ buffer.data, header_bytes.size() + payload_size }, i);
 
     if (rtcp) {
       rtcp->update_stats(packet_sequence_number, header_bytes.size() + payload_size, ts);
