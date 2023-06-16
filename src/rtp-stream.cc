@@ -62,7 +62,6 @@ bool RtpStream::send(const uint8_t* payload, const size_t size, const uint32_t t
 
 bool RtpStream::send_h264(const uint8_t* payload, const size_t size, const uint32_t ts) {
   const auto offsets = h264::get_nal_offsets(payload, size);
-  std::cout << "offsets: " << offsets.size() << std::endl;
   for (size_t i = 0; i < offsets.size(); i++) {
     const size_t offset = offsets[i];
     const size_t next_offset = (i + 1 < offsets.size()) ? offsets[i + 1] - 3 : size;
@@ -95,7 +94,6 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
   fu_headers[2] = (uint8_t)((1 << 6) | nal_type);
 
   size_t offset = 0;
-  std::cout << "parts: " << parts << std::endl;
   for (size_t i = 0; i < parts; i++) {
     header->set_version(2);
     header->set_padding(0);
@@ -114,7 +112,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     const size_t payload_offset = (i == 0) ? 1 : 2;
 
     memcpy(buffer.data, header_bytes.data(), header_bytes.size());
-    memcpy(buffer.data + header_bytes.size() + payload_offset, payload + offset, payload_size);
+    memcpy(buffer.data + header_bytes.size() + payload_offset, payload + offset, payload_size  +payload_offset);
     buffer.data[header_bytes.size()] = fu_indicator;
 
     if (i == 0) {
@@ -126,10 +124,10 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     }
 
     offset += payload_size;
-    socket.send({ buffer.data, header_bytes.size() + payload_size }, i);
+    socket.send({ buffer.data, header_bytes.size() + payload_size + payload_offset }, i);
 
     if (rtcp) {
-      rtcp->update_stats(packet_sequence_number, header_bytes.size() + payload_size, ts);
+      rtcp->update_stats(packet_sequence_number, header_bytes.size() + payload_size + payload_offset, ts);
     }
 
     packet_sequence_number++;

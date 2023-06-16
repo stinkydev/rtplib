@@ -32,8 +32,6 @@ RtpSocket::~RtpSocket() {
 void RtpSocket::send(RtpBuffer buffer, uint32_t id) {
   std::lock_guard<std::mutex> lock(mutex);
   send_buffer->push_back(std::move(buffer));
-  std::cout << id << ": send " << buffer.size << " bytes queue: " << send_buffer->size() << std::endl;
-
 }
 
 RtpBuffer RtpSocket::get_buffer() {
