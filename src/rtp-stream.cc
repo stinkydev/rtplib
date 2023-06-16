@@ -32,7 +32,9 @@ bool RtpStream::send_packet(const uint8_t* payload, const size_t size, const uin
   memcpy(buffer.data, header_bytes.data(), header_bytes.size());
   const auto payload_ptr = buffer.data + header_bytes.size();
   memcpy(payload_ptr, payload, size);
-  
+
+  std::cout << "sendpacket: sending " << total_size << " bytes" << std::endl;
+
   socket.send({ buffer.data, total_size });
 
   if (rtcp) {
@@ -94,7 +96,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
   fu_headers[2] = (uint8_t)((1 << 6) | nal_type);
 
   size_t offset = 0;
-  //std::cout << "size: " << size << " " << parts << " parts" << std::endl;
+  std::cout << "BIGNAL bgin size: " << size << " " << parts << " parts" << std::endl;
   for (size_t i = 0; i < parts; i++) {
     header->set_version(2);
     header->set_padding(0);
@@ -125,7 +127,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     }
 
     offset += payload_size;
-
+    std::cout << "bignal: sending " << payload_size << " bytes" << std::endl;
     socket.send({ buffer.data, header_bytes.size() + payload_size });
 
     if (rtcp) {

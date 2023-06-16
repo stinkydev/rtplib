@@ -1,4 +1,5 @@
 #include <rtplib/rtp-socket.h>
+#include <iostream>
 
 #define RTP_PACKET_SIZE 1500
 #define RTP_POOL_SIZE 100
@@ -29,6 +30,7 @@ RtpSocket::~RtpSocket() {
 void RtpSocket::send(RtpBuffer buffer) {
   std::lock_guard<std::mutex> lock(mutex);
   buffers.push_back(buffer);
+  std::cout << "buffers.size(): " << buffers.size() << std::endl;
 }
 
 RtpBuffer RtpSocket::get_buffer() {
@@ -46,14 +48,18 @@ RtpBuffer RtpSocket::get_buffer() {
 
 void RtpSocket::loop() {
   while (!stopping) {
-    std::lock_guard<std::mutex> lock(mutex);
+    {
+      std::lock_guard<std::mutex> lock(mutex);
 
-    while (buffers.size() > 0) {
-      RtpBuffer buffer = buffers.front();
-      buffers.pop_front();
-      MinimalSocket::ConstBuffer packet{reinterpret_cast<char*>(buffer.data), buffer.size};
-
-      socket.sendTo(packet, remote_address);
+      std::cout << "loop: buffers.size(): " << buffers.size() << std::endl;
+      while (buffers.size() > 0) {
+        RtpBuffer buffer = buffers.front();
+        buffers.pop_front();
+        MinimalSocket::ConstBuffer packet{reinterpret_cast<char*>(buffer.data), buffer.size};
+        std::cout << "loop: sending " << buffer.size << " bytes" << std::endl;
+        socket.sendTo(packet, remote_address);
+        pool.push_back({buffer.data, RTP_PACKET_SIZE});
+      }
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
