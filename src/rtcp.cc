@@ -70,7 +70,7 @@ uint32_t RTCPInstance::size_of_compound_packet(uint16_t reports,
 {
     uint32_t compound_packet_size = 0;
 
-    compound_packet_size = RTCPPackets::get_sr_packet_size(reports);
+    compound_packet_size = RTCPPackets::get_sr_packet_size(0);
 
     if (sdes_packet) {
       compound_packet_size += RTCPPackets::get_sdes_packet_size(ourItems_);
@@ -95,7 +95,7 @@ bool RTCPInstance::generate_report() {
 
     bool sr_packet = true;
     bool sdes_packet = true;
-    int reports = 1;
+    int reports = 0;
 
     uint32_t compound_packet_size = size_of_compound_packet(reports, sr_packet, sdes_packet, false);
     
@@ -108,7 +108,7 @@ bool RTCPInstance::generate_report() {
     if (sr_packet) {
       std::lock_guard<std::mutex> lock(stats_mutex_);
         // sender reports have sender information in addition compared to receiver reports
-        size_t sender_report_size = RTCPPackets::get_sr_packet_size(1);
+        size_t sender_report_size = RTCPPackets::get_sr_packet_size(0);
 
         // This is the timestamp when the LAST rtp frame was sampled
         uint64_t sampling_ntp_ts = last_ntp_timestamp;
@@ -149,7 +149,8 @@ bool RTCPInstance::generate_report() {
 
     const auto buffer = socket->get_buffer();
     memcpy(buffer.data, frame, compound_packet_size);
-
+    
+    std::cout << "sending rtcp packet: " << compound_packet_size << std::endl;
     socket->send({ buffer.data, compound_packet_size }, 100);
     return true;
 }
