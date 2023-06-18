@@ -3,44 +3,30 @@
 #include <stdint.h>
 #include <vector>
 #include <memory>
+#include <WinSock2.h>
 
-class RtpHeader {
- private:
-  uint8_t version_;
-  uint8_t padding_;
-  uint8_t extension_;
-  uint8_t csrc_count_;
-  uint8_t marker_;
-  uint8_t payload_type_;
-  uint16_t sequence_number_;
-  uint32_t timestamp_;
-  uint32_t ssrc_;
-  std::unique_ptr<std::vector<uint8_t>> bytes_buf;
- public:
-  RtpHeader();
-  RtpHeader(const std::vector<uint8_t>& bytes);
-  ~RtpHeader();
-
-
-  void set_version(uint8_t version);
-  void set_padding(uint8_t padding);
-  void set_extension(uint8_t extension);
-  void set_csrc_count(uint8_t csrc_count);
-  void set_marker(uint8_t marker);
-  void set_payload_type(uint8_t payload_type);
-  void set_sequence_number(uint16_t sequence_number);
-  void set_timestamp(uint32_t timestamp);
-  void set_ssrc(uint32_t ssrc);
-
-  uint8_t get_version() const;
-  uint8_t get_padding() const;
-  uint8_t get_extension() const;
-  uint8_t get_csrc_count() const;
-  uint8_t get_marker() const;
-  uint8_t get_payload_type() const;
-  uint16_t get_sequence_number() const;
-  uint32_t get_timestamp() const;
-  uint32_t get_ssrc() const; 
-
-  std::vector<uint8_t> get_bytes() const;
+struct RtpHeader {
+  uint8_t cc:4;        /* CSRC count */
+  uint8_t x:1;         /* header extension flag */
+  uint8_t p:1;         /* padding flag */
+  uint8_t version:2;   /* protocol version */
+  uint8_t pt:7;        /* payload type */
+  uint8_t m:1;         /* marker bit */
+  uint16_t seq:16;      /* sequence number */
+  uint32_t ts;         /* timestamp */
+  uint32_t ssrc;       /* synchronization source */
 };
+
+static const RtpHeader create_rtp_header(bool marker, uint8_t payload_type, uint16_t sequence_number, uint32_t timestamp, uint32_t ssrc) {
+  RtpHeader header;
+  header.version = 2;
+  header.p = 0;
+  header.x = 0;
+  header.cc = 0;
+  header.m = marker ? 1 : 0;
+  header.pt = payload_type;
+  header.seq = htons(sequence_number);
+  header.ts = htonl(timestamp);
+  header.ssrc = htonl(ssrc);
+  return header;
+}

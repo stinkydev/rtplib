@@ -34,7 +34,6 @@ class RtpStream {
  private:
   bool send_packet(const uint8_t* payload, const size_t size, const uint32_t ts);
   std::unique_ptr<RTCP::RTCPInstance> rtcp; 
-  std::unique_ptr<RtpHeader> header;
   bool send_big_nal(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_fragment(const uint8_t* payload, const size_t size, const uint32_t ts); 
   bool send_nal_unit(const uint8_t* payload, const size_t size, const uint32_t ts);

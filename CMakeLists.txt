@@ -21,7 +21,6 @@ message (STATUS "FFMPEG_DIR: " ${MAIN_SRC_DIR})
 
 set(LIB_SOURCES 
   src/h264.h
-  src/rtp-header.cc
   src/rtp-session.cc
   src/rtp-stream.cc
   src/rtp-socket.cc
