@@ -6,12 +6,21 @@
 
 namespace RTCP {
 
-RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, uint16_t src_port, uint16_t dst_port, uint32_t ssrc, uint32_t clock_rate)
-  : src_port(src_port), dst_port(dst_port), ssrc(ssrc), socket(src_port), remote_address(dst_address, dst_port) {
+RTCPInstance::RTCPInstance(std::string cname, std::shared_ptr<RtpSocket> socket, uint32_t ssrc, uint32_t clock_rate) : ssrc(ssrc), clock_rate_(clock_rate) {
+  this->socket = socket;
+  init(cname);
+}
 
+RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, uint16_t src_port, uint16_t dst_port, uint32_t ssrc, uint32_t clock_rate)
+  : src_port(src_port), dst_port(dst_port), ssrc(ssrc), clock_rate_(clock_rate) {
+  socket = std::make_shared<RtpSocket>(dst_address, src_port, dst_port);
+
+  init(cname);
+}
+
+void RTCPInstance::init(std::string cname) {
   rtcp_pkt_sent_count_ = 0;
   clock_start_ = 0;
-  clock_rate_ = clock_rate;
   last_ntp_timestamp = 0;
   last_rtp_timestamp = 0;
 
@@ -26,11 +35,15 @@ RTCPInstance::RTCPInstance(std::string cname, const std::string &dst_address, ui
 
   ourItems_.push_back(cnameItem_);
 
-  socket = MinimalSocket::udp::UdpBinded(src_port, remote_address.getFamily());
-  socket.open();
-
   stopping = false;
   rtcp_loop_thread = std::thread(&RTCPInstance::rtcp_loop, this);
+}
+
+void RTCPInstance::stop() {
+  stopping = true;
+  if (rtcp_loop_thread.joinable()) {
+    rtcp_loop_thread.join();
+  }
 }
 
 void RTCPInstance::rtcp_loop() {
@@ -59,7 +72,7 @@ uint32_t RTCPInstance::size_of_compound_packet(uint16_t reports,
 {
     uint32_t compound_packet_size = 0;
 
-    compound_packet_size = RTCPPackets::get_sr_packet_size(reports);
+    compound_packet_size = RTCPPackets::get_sr_packet_size(0);
 
     if (sdes_packet) {
       compound_packet_size += RTCPPackets::get_sdes_packet_size(ourItems_);
@@ -84,7 +97,7 @@ bool RTCPInstance::generate_report() {
 
     bool sr_packet = true;
     bool sdes_packet = true;
-    int reports = 1;
+    int reports = 0;
 
     uint32_t compound_packet_size = size_of_compound_packet(reports, sr_packet, sdes_packet, false);
     
@@ -97,7 +110,7 @@ bool RTCPInstance::generate_report() {
     if (sr_packet) {
       std::lock_guard<std::mutex> lock(stats_mutex_);
         // sender reports have sender information in addition compared to receiver reports
-        size_t sender_report_size = RTCPPackets::get_sr_packet_size(1);
+        size_t sender_report_size = RTCPPackets::get_sr_packet_size(0);
 
         // This is the timestamp when the LAST rtp frame was sampled
         uint64_t sampling_ntp_ts = last_ntp_timestamp;
@@ -108,10 +121,8 @@ bool RTCPInstance::generate_report() {
         uint32_t rtp_ts = last_rtp_timestamp;
 
         uint32_t reporting_rtp_ts = rtp_ts + (uint32_t)(diff_ms * (double(clock_rate_) / 1000));
-        std::cout << "rtcp ssrc: " << ssrc << " rtp-reporting ts: " << reporting_rtp_ts << " rtp ts: " << rtp_ts << "  ntp: " << ntp_ts << std::endl;
 
-
-        if (!RTCPPackets::construct_rtcp_header(frame, write_ptr, sender_report_size, reports, RTCPPackets::RTCP_FRAME_TYPE::RTCP_FT_SR) ||
+        if (!RTCPPackets::construct_rtcp_header(frame, write_ptr, sender_report_size, reports, RTCPPackets::RTCP_FRAME_TYPE::SR) ||
             !RTCPPackets::construct_ssrc(frame, write_ptr, ssrc) ||
             !RTCPPackets::construct_sender_info(frame, write_ptr, ntp_ts, reporting_rtp_ts, our_stats.sent_pkts, our_stats.sent_bytes))
         {
@@ -128,7 +139,7 @@ bool RTCPInstance::generate_report() {
 
         // add the SDES packet after the SR/RR, mandatory, must contain CNAME
         if (!RTCPPackets::construct_rtcp_header(frame, write_ptr, RTCPPackets::get_sdes_packet_size(ourItems_), 1,
-            RTCPPackets::RTCP_FRAME_TYPE::RTCP_FT_SDES) ||
+            RTCPPackets::RTCP_FRAME_TYPE::SDES) ||
             !RTCPPackets::construct_sdes_chunk(frame, write_ptr, chunk))
         {
             delete[] frame;
@@ -136,9 +147,31 @@ bool RTCPInstance::generate_report() {
         }
     }
 
-    MinimalSocket::ConstBuffer packet_buffer{reinterpret_cast<char*>(frame), compound_packet_size};
-    socket.sendTo(packet_buffer, remote_address);
+    const auto buffer = socket->get_buffer();
+    memcpy(buffer.data, frame, compound_packet_size);
+    
+    socket->send({ buffer.data, compound_packet_size }, 100);
     return true;
 }
+
+void RTCPInstance::decode_rtcp(const uint8_t* data, const size_t size) {
+  size_t offset = 0;
+  uint8_t* packet = (uint8_t*)data;
+  while ((offset < size) && (RTCPPackets::is_rtcp_packet(packet + offset, size - offset))) {
+    RTCPPackets::RtcpHeader* header = (RTCPPackets::RtcpHeader*)(packet + offset);
+    switch (header->packet_type) {
+      case (uint8_t)RTCPPackets::RTCP_FRAME_TYPE::PSFB: {
+        if (header->rc == 4) {  // FIR request
+          if (on_request_keyframe) {
+            on_request_keyframe();
+          }
+        }
+        break;
+      }
+    }
+    offset += (ntohs(header->length) + 1) * 4;
+  }
+}
+  
 
 }  // namespace RTCP
