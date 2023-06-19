@@ -6,8 +6,6 @@
 #include <rtplib/rtcp.h>
 #include <rtplib/rtp-socket.h>
 
-class RtpHeader;
-
 struct RtpStreamConfig {
   std::string dst_address;
   uint16_t dst_port;
@@ -31,6 +29,7 @@ class RtpStream {
   bool send_h264(const uint8_t* payload, const size_t size, const uint32_t ts);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
   uint32_t RtpStream::get_packet_sequence_number();
+  std::function <void()> on_request_keyframe = nullptr;
  private:
   bool send_packet(const uint8_t* payload, const size_t size, const uint32_t ts);
   std::unique_ptr<RTCP::RTCPInstance> rtcp; 
@@ -42,6 +41,6 @@ class RtpStream {
   uint32_t ssrc;
   uint8_t payload_type;
   uint32_t packet_sequence_number;
-  RtpSocket socket;
+  std::shared_ptr<RtpSocket> socket;
   bool rtcp_mux;
 };

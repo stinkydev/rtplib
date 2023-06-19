@@ -10,12 +10,23 @@ namespace RTCP {
 
 namespace RTCPPackets {
 
-enum RTCP_FRAME_TYPE {
-    RTCP_FT_SR   = 200, /* Sender report */
-    RTCP_FT_RR   = 201, /* Receiver report */
-    RTCP_FT_SDES = 202, /* Source description */
-    RTCP_FT_BYE  = 203, /* Goodbye */
-    RTCP_FT_APP  = 204  /* Application-specific message */
+enum class RTCP_FRAME_TYPE {
+  SR    = 200,
+  RR    = 201,
+  SDES  = 202,
+  BYE   = 203,
+  APP   = 204,
+  RTPFB = 205,
+  PSFB  = 206,
+  XR    = 207
+};
+
+struct RtcpHeader {
+  uint8_t rc : 5;
+  uint8_t padding : 1;
+  uint8_t version : 2;
+  uint8_t packet_type;
+  uint16_t length;
 };
 
 const uint16_t RTCP_HEADER_SIZE = 4;
@@ -31,6 +42,12 @@ uint32_t get_sdes_packet_size(const std::vector<rtcp_sdes_item>& items);
 
 bool construct_sdes_chunk(uint8_t* frame, size_t& ptr, rtcp_sdes_chunk chunk);
 
+inline bool is_rtcp_packet(uint8_t* data, size_t size) {
+  const RtcpHeader* header = reinterpret_cast<const RtcpHeader*>(data);
+  // Taken from mediasoup code
+  return (size >= sizeof(RtcpHeader)) && (data[0] > 127) && (data[0] < 192) &&
+    (header->version == 2) && (header->packet_type >= 192) && (header->packet_type < 223);
+}
 // Add the RTCP header
 bool construct_rtcp_header(uint8_t* frame, size_t& ptr, size_t packet_size,
     uint8_t secondField, RTCP_FRAME_TYPE frame_type);

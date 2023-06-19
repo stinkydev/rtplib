@@ -31,6 +31,7 @@ class RtpSocket {
   void loop();
   std::mutex mutex;
  public:
+  std::function<void(std::vector<uint8_t>)> on_receive = nullptr;
   void send(RtpBuffer buffer, uint32_t id);
   RtpBuffer get_buffer();
   RtpSocket(const std::string& dst_address, const uint16_t src_port, const uint16_t dst_port);

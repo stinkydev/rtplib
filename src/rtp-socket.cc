@@ -56,10 +56,26 @@ void RtpSocket::loop() {
         RtpBuffer buffer = send_buffer->front();
         send_buffer->pop_front();
         MinimalSocket::ConstBuffer packet{reinterpret_cast<char*>(buffer.data), buffer.size};
-        socket.sendTo(packet, remote_address);
+        try {
+          socket.sendTo(packet, remote_address);
+        } catch (const std::exception& e) {
+          // Silent
+        }
         pool.push_back({buffer.data, RTP_PACKET_SIZE});
       }
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    try {
+      const auto data = socket.receive(1500, MinimalSocket::Timeout(5));
+      if (data.has_value()) {
+        const auto packet = data.value();
+        if (on_receive) {
+          on_receive(std::vector<uint8_t>(packet.received_message.begin(), packet.received_message.end()));
+        }
+      }
+    } catch (const std::exception& e) {
+      // Silent
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+
   }
 }

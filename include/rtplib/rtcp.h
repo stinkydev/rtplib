@@ -18,7 +18,7 @@ struct SenderStats {
 
 class RTCPInstance {
  public:
-  RTCPInstance(std::string cname, RtpSocket* socket, uint32_t ssrc, uint32_t clock_rate);
+  RTCPInstance(std::string cname, std::shared_ptr<RtpSocket> socket, uint32_t ssrc, uint32_t clock_rate);
   RTCPInstance(std::string cname, const std::string &dst_address, uint16_t src_port, uint16_t dst_port, uint32_t ssrc, uint32_t clock_rate);
   ~RTCPInstance() {
     stopping = true;
@@ -26,8 +26,10 @@ class RTCPInstance {
       rtcp_loop_thread.join();
     }
   }
+  std::function<void()> on_request_keyframe = nullptr;
   void update_stats(uint32_t rtp_timestamp, uint32_t sent_bytes, uint32_t rtp_ts);
   void stop();
+  void decode_rtcp(const uint8_t* data, const size_t size);
  private:
   void init(const std::string cname);
   bool stopping;
@@ -39,7 +41,7 @@ class RTCPInstance {
   uint16_t src_port;
   uint16_t dst_port;
   uint32_t ssrc;
-  RtpSocket* socket;
+  std::shared_ptr<RtpSocket> socket;
   std::mutex packet_mutex_;
   uint32_t rtcp_pkt_sent_count_;
   char cname_[255];

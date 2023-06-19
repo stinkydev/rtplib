@@ -1,17 +1,32 @@
 #include <rtplib/rtp-stream.h>
 #include <rtplib/rtp-header.h>
 #include "h264.h"
+#include <rtplib/rtcp-packets.h>
 
 static const int MAX_MCU = 1400;
 
-RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number)
- : socket(config.dst_address, config.src_port, config.dst_port) {
+RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_number) {
+  socket = std::make_shared<RtpSocket>(config.dst_address, config.src_port, config.dst_port);
+    socket->on_receive = [&](std::vector<uint8_t> data) {
+    if (RTCP::RTCPPackets::is_rtcp_packet(data.data(), data.size())) {
+      rtcp->decode_rtcp(data.data(), data.size());
+    }
+  };
+
   this->rtcp_mux = config.rtcp_mux;
   if (rtcp_mux) {
-   rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), &socket, config.ssrc, config.clock_rate);
+   rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), socket, config.ssrc, config.clock_rate);
   } else {
    rtcp = std::make_unique<RTCP::RTCPInstance>(std::string("HEHE"), config.dst_address, config.src_port_rtcp, config.dst_port_rtcp, config.ssrc, config.clock_rate);
   }
+
+  rtcp->on_request_keyframe = [&]() {
+    std::cout << "Requesting keyframe" << std::endl;
+    if (on_request_keyframe) {
+      on_request_keyframe();
+    }
+  };
+
   this->src_port = config.src_port;
   this->dst_port = config.dst_port;
   this->ssrc = config.ssrc;
@@ -28,12 +43,12 @@ bool RtpStream::send_packet(const uint8_t* payload, const size_t size, const uin
   const auto header_size = sizeof(RtpHeader);
   
   const auto total_size = size + header_size;
-  const auto buffer = socket.get_buffer();
+  const auto buffer = socket->get_buffer();
   memcpy(buffer.data, &header, sizeof(RtpHeader));
   const auto payload_ptr = buffer.data + header_size;
   memcpy(payload_ptr, payload, size);
 
-  socket.send({ buffer.data, total_size }, 0);
+  socket->send({ buffer.data, total_size }, 0);
 
   if (rtcp) {
     rtcp->update_stats(packet_sequence_number, total_size, ts);
@@ -87,7 +102,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     const auto header = create_rtp_header(i == parts - 1, payload_type, packet_sequence_number, ts, ssrc);
     const auto header_size = sizeof(RtpHeader);
 
-    const auto buffer = socket.get_buffer();
+    const auto buffer = socket->get_buffer();
 
     size_t payload_size = (i == parts - 1) ? size - offset : MAX_MCU;
     const size_t payload_offset = (i == 0) ? 1 : 2;
@@ -110,7 +125,7 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     }
 
     offset += payload_size;
-    socket.send({ buffer.data, total_size }, i);
+    socket->send({ buffer.data, total_size }, i);
 
     if (rtcp) {
       rtcp->update_stats(packet_sequence_number, total_size, ts);
