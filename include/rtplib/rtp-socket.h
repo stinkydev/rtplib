@@ -8,6 +8,7 @@
 
 #include <MinimalSocket/core/Address.h>
 #include <MinimalSocket/udp/UdpSocket.h>
+#include <MinimalSocket/Error.h>
 #include <rtplib/rtp-header.h>
 
 struct RtpBuffer {
@@ -23,6 +24,8 @@ struct PoolItem {
 class RtpSocket {
  private:
   bool stopping = false;
+  bool send_error = false;
+  bool receive_error = false;
   std::unique_ptr<std::deque<RtpBuffer>> send_buffer;
   MinimalSocket::udp::UdpBinded socket;
   MinimalSocket::Address remote_address;
