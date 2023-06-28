@@ -21,7 +21,6 @@ RtpStream::RtpStream(const RtpStreamConfig &config, uint32_t packet_sequence_num
   }
 
   rtcp->on_request_keyframe = [&]() {
-    std::cout << "Requesting keyframe" << std::endl;
     if (on_request_keyframe) {
       on_request_keyframe();
     }
