@@ -28,7 +28,7 @@ class RtpStream {
   }
   bool send_h264(const uint8_t* payload, const size_t size, const uint32_t ts);
   bool send(const uint8_t* payload, const size_t size, const uint32_t ts);
-  uint32_t RtpStream::get_packet_sequence_number();
+  uint32_t get_packet_sequence_number();
   std::function <void()> on_request_keyframe = nullptr;
  private:
   bool send_packet(const uint8_t* payload, const size_t size, const uint32_t ts);
