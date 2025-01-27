@@ -14,7 +14,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/out)
 include(CTest)
 enable_testing()
 
-set(BUILD_MinimalCppSocket_SAMPLES OFF)
+option(BUILD_MinimalCppSocket_SAMPLES "" OFF)
 add_subdirectory(${EXTERNAL_DIR}/minimal-socket)
 
 message (STATUS "FFMPEG_DIR: " ${MAIN_SRC_DIR})
