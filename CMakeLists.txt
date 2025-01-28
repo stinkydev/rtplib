@@ -17,8 +17,6 @@ enable_testing()
 option(BUILD_MinimalCppSocket_SAMPLES "" OFF)
 add_subdirectory(${EXTERNAL_DIR}/minimal-socket)
 
-message (STATUS "FFMPEG_DIR: " ${MAIN_SRC_DIR})
-
 set(LIB_SOURCES 
   src/h264.h
   src/rtp-session.cc
