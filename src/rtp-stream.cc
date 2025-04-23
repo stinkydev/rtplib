@@ -50,7 +50,7 @@ bool RtpStream::send_packet(const uint8_t* payload, const size_t size, const uin
   socket->send({ buffer.data, total_size }, 0);
 
   if (rtcp) {
-    rtcp->update_stats(packet_sequence_number, total_size, ts);
+    rtcp->update_stats(packet_sequence_number, static_cast<uint32_t>(total_size), ts);
   }
 
   packet_sequence_number++;
@@ -85,7 +85,7 @@ bool RtpStream::send_h264(const uint8_t* payload, const size_t size, const uint3
 }
 
 bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const uint32_t ts) {
-  const int parts = std::ceil((double)size / MAX_MCU);
+  const int parts = static_cast<int>(std::ceil((double)size / MAX_MCU));
 
   uint8_t nal_type = payload[0] & 0x1f;
   uint8_t nal_header = payload[0];
@@ -124,10 +124,10 @@ bool RtpStream::send_big_nal(const uint8_t* payload, const size_t size, const ui
     }
 
     offset += payload_size;
-    socket->send({ buffer.data, total_size }, i);
+    socket->send({ buffer.data, total_size }, static_cast<uint32_t>(i));
 
     if (rtcp) {
-      rtcp->update_stats(packet_sequence_number, total_size, ts);
+      rtcp->update_stats(packet_sequence_number, static_cast<uint32_t>(total_size), ts);
     }
 
     packet_sequence_number++;

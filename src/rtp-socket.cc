@@ -79,6 +79,7 @@ void RtpSocket::loop() {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
       }
     } catch (MinimalSocket::SocketError &err) {
+      (void)(err);
       // Silent
       receive_error = true;
       std::this_thread::sleep_for(std::chrono::milliseconds(5));

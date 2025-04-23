@@ -47,7 +47,7 @@ void RTCPInstance::stop() {
 }
 
 void RTCPInstance::rtcp_loop() {
-  srand(time(NULL));
+  srand(static_cast<unsigned int>(time(NULL)));
   std::mt19937_64 eng{std::random_device{}()};
   std::uniform_int_distribution<> dist{10, 100};
   const auto r = dist(eng);

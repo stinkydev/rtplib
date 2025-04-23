@@ -36,6 +36,8 @@ add_library(${PROJECT_NAME} STATIC
 
 add_dependencies(${PROJECT_NAME} MinimalSocket)
 
+target_compile_options(MinimalSocket PRIVATE /wd4996)
+
 target_include_directories(${PROJECT_NAME}
   PUBLIC 
   ${MAIN_INCLUDE_DIR}
