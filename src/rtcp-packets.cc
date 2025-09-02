@@ -1,6 +1,6 @@
 #include <rtplib/rtcp-packets.h>
 #include <iostream> 
-#include <winsock.h>
+#include <winsock2.h>
 
 #define SET_NEXT_FIELD_32(a, p, v) do { *(uint32_t *)&(a)[p] = (v); p += 4; } while (0)
 
